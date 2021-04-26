@@ -75,7 +75,6 @@ void vIOInit(void)
     LPC_CCU1->CLK_M4_LCD_CFG = 0;
     LPC_CCU1->CLK_M4_ETHERNET_CFG = 0;
     LPC_CCU1->CLK_M4_EMC_CFG = 0;
-    LPC_CCU1->CLK_M4_SDIO_CFG = 0;
     LPC_CCU1->CLK_M4_USB1_CFG = 0;
     LPC_CCU1->CLK_M4_EMCDIV_CFG = 0;
 
@@ -88,7 +87,10 @@ void vIOInit(void)
     LPC_CCU2->CLK_APB0_SSP0_CFG = 0;
     LPC_CCU2->CLK_APB2_USART3_CFG = 0;
     LPC_CCU2->CLK_APB2_USART2_CFG = 0;
-    LPC_CCU2->CLK_SDIO_CFG = 0;
+
+    // enable SDIO clocks
+    LPC_CCU1->CLK_M4_SDIO_CFG = 1;
+    LPC_CCU2->CLK_SDIO_CFG = 1;
 
     scu_pinmux(0x0, 0,  (MD_PUP | MD_EZI | MD_ZI | MD_EHS), FUNC0);          // gpio0[0] siod
     scu_pinmux(0x0, 1,  (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC0);          // gpio0[1] sioc
@@ -113,7 +115,7 @@ void vIOInit(void)
 
     scu_pinmux(0x4, 2, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC1);           // CTOUT_0 RED     ORIGINALLY FUNC1
     scu_pinmux(0x2, 7, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC1);           // CTOUT_1 GREEN   ORIGINALLY FUNC1
-    scu_pinmux(0x2, 10, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC1);          // CTOUT_2 BLUE        ORIGINALLY FUNC1
+    scu_pinmux(0x2, 10, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC1);          // CTOUT_2 BLUE    ORIGINALLY FUNC1
 
     scu_pinmux(0x3, 1, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC4);           // gpio5[8] VBUS_EN
 
@@ -124,17 +126,23 @@ void vIOInit(void)
 
     scu_pinmux(0x1, 3, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC5);           // SSP1_MISO
     scu_pinmux(0x1, 4, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC5);           // SSP1_MOSI
-    scu_pinmux(0x1, 19, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC1);              // SSP1_SCK
-    scu_pinmux(0x1, 20, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC1);              // SSP1_SSEL
+    scu_pinmux(0x1, 19, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC1);          // SSP1_SCK
+    scu_pinmux(0x1, 20, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC1);          // SSP1_SSEL
     scu_pinmux(0x2, 2, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC4);           // gpio5[2]
     scu_pinmux(0x2, 3, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC4);           // gpio5[3]
     scu_pinmux(0x2, 4, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC4);           // gpio5[4]
-    scu_pinmux(0x2, 5, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC0); // FUNC4              // gpio5[5] rev 1.1 SS control
+    scu_pinmux(0x2, 5, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC0);           // gpio5[5] rev 1.1 SS control
     scu_pinmux(0x3, 2, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC4);           // gpio5[9]
 
     scu_pinmux(0x2, 8, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC4);           // push-button gpio5[7]
     scu_pinmux(0x4, 1, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC0);           // gpio2[1] rev 1.1
 
+    scu_pinmux(0xC,  0, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC7);          // SD_CLK
+    scu_pinmux(0xC,  4, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC7);          // SD_DAT0
+    scu_pinmux(0xC,  5, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC7);          // SD_DAT1
+    scu_pinmux(0xC,  6, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC7);          // SD_DAT2
+    scu_pinmux(0xC,  7, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC7);          // SD_DAT3
+    scu_pinmux(0xC, 10, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC7);          // SD_CMD
 
     //scu_pinmux(0x7, 4, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC0);         // gpio4[9]
     //scu_pinmux(0x7, 5, (MD_PLN | MD_EZI | MD_ZI | MD_EHS), FUNC0);         // gpio4[9]
