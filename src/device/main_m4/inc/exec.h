@@ -37,8 +37,8 @@ typedef int (*ProgFunc)();
 
 struct Program
 {
-    char *progName;
-    char *desc;
+    const char *progName;
+    const char *desc;
     ProgFunc setup;
     ProgFunc loop;
 };

@@ -242,7 +242,7 @@ int32_t getRLSFrame(void)
         // for IR application.
         skipLine();
 
-        numQvals = processLine((uint32_t *)&CAM_PORT, (uint8_t*)MEM_SD_FRAME_LOC, &qScratch);
+        numQvals = processLine((uint32_t *)&CAM_PORT, (uint8_t*)MEM_SD_FRAME_LOC, qScratch);
 
         for (uint32_t i = 0; i < numQvals; ++i)
         {
