@@ -19,8 +19,6 @@
 
 Blobs::Blobs()
 {
-    int i;
-
     m_mutex = false;
     m_minArea = MIN_AREA;
     m_maxBlobs = MAX_BLOBS;
@@ -31,12 +29,18 @@ Blobs::Blobs()
     m_blobs = new uint16_t[MAX_BLOBS*5];
     m_numBlobs = 0;
     m_blobReadIndex = 0;
+    m_frameBufValid = false;
     m_assembler.Reset();
 }
 
 Blobs::~Blobs()
 {
     delete [] m_blobs;
+}
+
+bool Blobs::frameBufValid()
+{
+    return m_frameBufValid;
 }
 
 int Blobs::handleSegment(uint16_t row, uint16_t startCol, uint16_t endCol)
@@ -70,14 +74,14 @@ int Blobs::runlengthAnalysis(Qqueue *qq)
         }
 
         // Break on end of frame or frame error
-        if (qval.m_col_start >= QVAL_FRAME_ERROR)
+        if ((qval.m_col_start & QVAL_VAL_MASK) >= QVAL_FRAME_ERROR)
             break;
 
         if (res < 0)
             continue;
 
         // Beginning of a new line marker
-        if (qval.m_col_start == QVAL_LINE_BEGIN)
+        if ((qval.m_col_start & QVAL_VAL_MASK) == QVAL_LINE_BEGIN)
         {
             row++;
             if (icount++ == 5) // an interleave of every 5 lines or about every 175us seems good
@@ -91,22 +95,29 @@ int Blobs::runlengthAnalysis(Qqueue *qq)
         res = handleSegment(row, qval.m_col_start, qval.m_col_end - 1);
     }
 
+    if ((qval.m_col_start & QVAL_VAL_MASK) == QVAL_FRAME_ERROR) // error code, queue overrun
+        return -1;
+
     m_assembler.EndFrame();
     m_assembler.SortFinished();
 
-    if (qval.m_col_start==QVAL_FRAME_ERROR) // error code, queue overrun
-        return -1;
+    // Check to see if M0 saved the pixels to the frame buffer for M4 to save to SD Card
+    if (qval.m_col_start & QVAL_WRITE_FRAME_BIT)
+        m_frameBufValid = true;
+
     return 0;
 }
 
 int Blobs::blobify(Qqueue *qq)
 {
-    uint32_t i, j, k = 0;
+    uint32_t j, k = 0;
     CBlob *blob;
     uint16_t *blobsStart;
     uint16_t numBlobsStart, invalid, invalid2;
     uint16_t left, top, right, bottom;
     //uint32_t timer, timer2=0;
+
+    m_frameBufValid = false;
 
     if (runlengthAnalysis(qq) < 0)
     {
@@ -131,14 +142,13 @@ int Blobs::blobify(Qqueue *qq)
         blob->getBBox((short &)left, (short &)top, (short &)right, (short &)bottom);
         if (bottom-top<=1) // blobs that are 1 line tall
             continue;
-        m_blobs[j + 0] = i+1;
+        m_blobs[j + 0] = 1;
         m_blobs[j + 1] = left;
         m_blobs[j + 2] = right;
         m_blobs[j + 3] = top;
         m_blobs[j + 4] = bottom;
         m_numBlobs++;
         j += 5;
-
     }
     //setTimer(&timer);
     while(1)
@@ -231,9 +241,9 @@ uint16_t Blobs::getBlock(uint8_t *buf, uint32_t buflen)
 BlobA *Blobs::getMaxBlob(uint16_t signature, uint16_t *numBlobs)
 {
     int i;
-    uint16_t blobs;
-    uint32_t area, maxArea;
-    BlobA *blob, *maxBlob;
+    uint32_t area;
+    uint32_t maxArea;
+    BlobA *blob;
 
     if (m_mutex)
         return (BlobA *)-1;  // busy!

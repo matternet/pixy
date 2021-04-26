@@ -107,3 +107,23 @@ void showError(uint8_t num, uint32_t color, const char *message)
             lpc_printf(message);
     }
  }
+
+uint16_t crc16(const void* const data, const uint32_t size, uint16_t init)
+{
+    uint16_t crc = init;
+    const uint8_t* const buffer = (const uint8_t* const)data;
+
+    for (unsigned i = 0; i < size; i++)
+    {
+        crc ^= ((unsigned short)buffer[i]) << 8;
+        for (unsigned j = 0; j < 8; j++)
+        {
+            if (crc & 0x08000)
+                crc = (crc << 1) ^ CRC16_CCITT_POLYNOMIAL;
+            else
+                crc = crc << 1;
+        }
+    }
+
+    return crc;
+}
