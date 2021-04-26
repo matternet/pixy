@@ -416,7 +416,6 @@ void HardFault_Handler(void)
 void M0_HardFault_Handler(void)
 #endif
 {
-    _DBG("HardFault\n");
     while(1) { }
 }
 
