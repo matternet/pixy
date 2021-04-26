@@ -64,13 +64,8 @@ unsigned __check_heap_overflow (void * new_end_of_heap)
 
 int main(void)
 {
-    uint16_t major, minor, build;
-    char *type;
-    int i, res, count, count2;
-    volatile uint32_t d;
-
     // insert a small delay so power supply can stabilize
-    for (d=0; d<2500000; d++);
+    for (uint32_t d=0; d<2500000; d++);
 
 #ifdef KEIL
     pixyInit(SRAM3_LOC, &LR0[0], sizeof(LR0));

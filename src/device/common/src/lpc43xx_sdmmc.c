@@ -29,6 +29,7 @@
  * this code.
  */
 
+#include "lpc43xx_cgu.h"
 #include "lpc43xx_sdmmc.h"
 #include "string.h"
 
@@ -75,8 +76,8 @@ static int32_t sdmmc_execute_command(LPC_SDMMC_Type *pSDMMC, uint32_t cmd, uint3
     }
 
     while (step) {
-        //Chip_SDIF_SetClock(pSDMMC, Chip_Clock_GetBaseClocktHz(CLK_BASE_SDIO), g_card_info->card_info.speed);
-        Chip_SDIF_SetClock(pSDMMC, 204000000UL, g_card_info->card_info.speed);
+        uint32_t pclk = CGU_GetPCLKFrequency(CGU_PERIPHERAL_SDIO);
+        Chip_SDIF_SetClock(pSDMMC, pclk, g_card_info->card_info.speed);
 
         /* Clear the interrupts */
         Chip_SDIF_ClrIntStatus(pSDMMC, 0xFFFFFFFF);

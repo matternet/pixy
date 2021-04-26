@@ -20,6 +20,7 @@
 #include "led.h"
 #include "serial.h"
 #include "exec.h"
+#include "sdmmc.h"
 
 
 static int blobsSetup();
@@ -84,6 +85,9 @@ static int blobsLoop()
     // send blobs
     blobs_.getBlobs(&blobs, &numBlobs);
     sendBlobs(g_chirpUsb, blobs, numBlobs);
+
+    if (blobs_.frameBufValid())
+        sdmmc_writeFrame((void*)MEM_SD_FRAME_LOC, CAM_RES2_WIDTH * CAM_RES2_HEIGHT);
 
     // can do work here while waiting for more data in queue
     Iserial *serial = ser_getSerial();

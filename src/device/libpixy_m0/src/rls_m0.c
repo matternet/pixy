@@ -20,12 +20,17 @@
 #include "pixyvals.h"
 #include "assembly.h"
 
+#define CAMERA_FPS     50    // Frame rate of camera
+#define IMAGE_LOG_FPS  10    // Frame rate of logging images to SD Card
+
+static const uint32_t DIVIDER_FPS = CAMERA_FPS / IMAGE_LOG_FPS;
 static const uint32_t MAX_NEW_QVALS_PER_LINE  = ((CAM_RES2_WIDTH/3)+2);
 static const uint32_t PIXEL_THRESHOLD = 170;
 static const uint32_t WIDTH = CAM_RES2_WIDTH;
 static const uint32_t INVALID_COL = CAM_RES2_WIDTH + 1;
 
-_ASM_FUNC uint32_t processLine(uint32_t *gpio, uint8_t *framebuf, Qval *qMem)
+
+_ASM_FUNC uint32_t processLine(uint32_t *gpio, uint8_t *framebuf, Qval *qMem, uint32_t writeFrame)
 {
 // r0: gpio register
 // r1: frame buffer
@@ -36,7 +41,7 @@ _ASM_FUNC uint32_t processLine(uint32_t *gpio, uint8_t *framebuf, Qval *qMem)
 // r6: scratch
 // r7: scratch; pixel value
 // r8: invalid column
-// r9: not used
+// r9: writeFrame
 // r10: max Q values per line
 // r11: pixel threshold
 // r12: width
@@ -51,6 +56,21 @@ _ASM_FUNC uint32_t processLine(uint32_t *gpio, uint8_t *framebuf, Qval *qMem)
 #else
     _ASM(PUSH   {r1-r7})
 #endif
+
+    // Save the last argument "writeFrame" to r9.
+    // writeFrame is a flag used to indicate if this function
+    // should write the pixel data to the frame buffer or not.
+    // In a normal design, one would use the writeFrame as a
+    // conditional flag. However, this function needs to sync with
+    // the timing of a pixel data from the camera. Any difference in
+    // logic like a branch will throw everything out of sync. Therefore
+    // the logic below always write the pixel data to memory. In the case
+    // where writeFrame is 1, the framebuf address points to a shared memory
+    // frame buffer and the address gets incremented by 1 every loop.
+    // In the case where writeFrame is 0, the memory pointer is some temporary
+    // address on the stack and the address does not get incremented; the same
+    // address is written over again each loop.
+    _ASM(MOV    r9, r3)
 
     // fetch MAX_NEW_QVALS_PER_LINE value
     _ASM(LDR    r6, =MAX_NEW_QVALS_PER_LINE)
@@ -143,7 +163,7 @@ _ASM_LABEL(loop_inc)
 _ASM_LABEL(loop_pixel)
     _ASM(LDRB   r7, [r0])   // 2; load Red pixel from GPIO
     _ASM(STRB   r7, [r1])   // 2; store Red pixel to RAM
-    _ASM(ADDS   r1, #1)     // 1; move to next frame buffer pixel
+    _ASM(ADD    r1, r9)     // 1; move to next frame buffer pixel
 
     // Check pixel brightness is above threshold
     _ASM(CMP    r7, r11)     // 1
@@ -217,9 +237,24 @@ _ASM_LABEL(hsyncend)
 
 int32_t getRLSFrame(void)
 {
+    // The pixy captures a frame every 20ms. Writing a frame to an SD Card
+    // takes a little over 21ms. This means we can not write every frame.
+    // Also, the framebuffer shared memory used to store the frame is shared by the M0
+    // and M4 cores. When the M0 is in the time critical function "processLine" everything
+    // must be deterministic in regards to timing. This means, if the M0 is writing the frame
+    // pixels to the shared frame buffer, the M4 core should not access it during this time
+    // or else the pixel sync timing will not align and the pixel data is invalid.
+    static uint32_t s_frameCount = 0;
+    uint32_t writeFrame = (s_frameCount++ % DIVIDER_FPS == 0);
+
+    // If writing the pixels to the frame buffer then use the correct shared memory address.
+    // Else use a dummy address on the stack. See comments in the processLine function for more details.
+    uint8_t dummyFrameBuf;
+    uint8_t *frameBuf = (writeFrame) ? (uint8_t*)MEM_SD_FRAME_LOC : &dummyFrameBuf;
+
     uint32_t numQvals;
-    Qval lineBegin = {QVAL_LINE_BEGIN};
     Qval qScratch[MAX_NEW_QVALS_PER_LINE];
+    Qval lineBegin = {QVAL_LINE_BEGIN};
 
     // This waits for the current frame to finish to avoid partial frame.
     skipLines(0);
@@ -242,7 +277,10 @@ int32_t getRLSFrame(void)
         // for IR application.
         skipLine();
 
-        numQvals = processLine((uint32_t *)&CAM_PORT, (uint8_t*)MEM_SD_FRAME_LOC, qScratch);
+        numQvals = processLine((uint32_t *)&CAM_PORT, frameBuf, qScratch, writeFrame);
+
+        if (writeFrame)
+            frameBuf += CAM_RES2_WIDTH;
 
         for (uint32_t i = 0; i < numQvals; ++i)
         {
@@ -251,6 +289,7 @@ int32_t getRLSFrame(void)
     }
 
     Qval frameEnd = {QVAL_FRAME_END};
+    if (writeFrame) frameEnd.m_col_start |= QVAL_WRITE_FRAME_BIT;
     qq_enqueue(&frameEnd);
     return 0;
 }

@@ -23,9 +23,11 @@
 #endif
 #define QQ_MEM_SIZE  ((QQ_SIZE - sizeof(struct QqueueFields) + sizeof(Qval)) / sizeof(Qval))
 
-#define QVAL_LINE_BEGIN    0xfffd
-#define QVAL_FRAME_ERROR   0xfffe
-#define QVAL_FRAME_END     0xffff
+#define QVAL_WRITE_FRAME_BIT  (1 << 15)
+#define QVAL_VAL_MASK         0x0fff
+#define QVAL_LINE_BEGIN       0x0ffd
+#define QVAL_FRAME_ERROR      0x0ffe
+#define QVAL_FRAME_END        0x0fff
 
 #ifdef __cplusplus
 struct Qval

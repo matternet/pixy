@@ -26,6 +26,7 @@
 #include "led.h"
 #include "power.h"
 #include "misc.h"
+#include "sdmmc.h"
 
 Chirp *g_chirpUsb = NULL;
 Chirp *g_chirpM0 = NULL;
@@ -194,6 +195,11 @@ void pixyInit(void)
     // initialize devices/modules
     led_init();
     led_setRGB(255, 0, 0);
+
+#ifdef ENABLE_IMAGE_LOGGING
+    sdmmc_init();
+#endif
+
     prm_init(g_chirpUsb);
     pwr_init();
     cam_init();

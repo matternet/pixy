@@ -40,6 +40,7 @@ public:
     BlobA *getMaxBlob(uint16_t signature=0, uint16_t *numBlobs=NULL);
     void getBlobs(BlobA **blobs, uint32_t *len);
     int runlengthAnalysis(Qqueue *qq);
+    bool frameBufValid();
 #ifndef PIXY
     void getRunlengths(uint32_t **qvals, uint32_t *len);
 #endif
@@ -76,6 +77,7 @@ private:
     uint16_t m_mergeDist;
     uint16_t m_maxCodedDist;
     BlobA *m_maxBlob;
+    bool m_frameBufValid;
 
 #ifndef PIXY
     uint32_t m_numQvals;
