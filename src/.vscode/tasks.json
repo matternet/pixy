@@ -7,7 +7,7 @@
 			"command": "bash",
 			"args": [
 				"-c",
-				"cd device && PATH=/opt/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin:$PATH make"
+				"cd device && make clean && PATH=/opt/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin:$PATH DEBUG=1 make"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
