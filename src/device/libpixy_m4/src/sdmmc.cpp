@@ -35,6 +35,7 @@
 #define BLOCKS_PER_FRAME        ((CAM_RES2_WIDTH * CAM_RES2_HEIGHT) / MMC_SECTOR_SIZE)
 #define FRAMES_PER_SESSION      15000
 #define MAX_SESSIONS            32
+#define DEV_BLOCKS_REQUIRED     (SESSION_BLOCK_START + (BLOCKS_PER_FRAME * FRAMES_PER_SESSION * MAX_SESSIONS))
 
 static int read_blocks(const uint32_t &blkStart, const uint32_t &blkCnt, Chirp *chirp);
 
@@ -255,6 +256,12 @@ bool sdmmc_init(void)
     int32_t dev_blocks = Chip_SDMMC_GetDeviceBlocks(LPC_SDMMC);
     printf(LOG_PREFIX "Device Size: %llu\n", dev_size);
     printf(LOG_PREFIX "Device Blocks: %u\n", dev_blocks);
+
+    if (dev_blocks < DEV_BLOCKS_REQUIRED)
+    {
+        printf(LOG_PREFIX "Error: SD Card too small. Required blocks: %u\n", DEV_BLOCKS_REQUIRED);
+        return false;
+    }
 
     boot_cnt_ = 0;
     if (init_card(boot_cnt_))
