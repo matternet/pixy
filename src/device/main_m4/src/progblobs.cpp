@@ -35,16 +35,39 @@ Program g_progBlobs =
 };
 
 static bool initialized_ = false;
+static bool enable_recording_ = false;
 static Qqueue qqueue_;
 static Blobs blobs_;
 
-static uint32_t callback(uint8_t *data, uint32_t len)
+static uint32_t getTxData(uint8_t *data, uint32_t len)
 {
     return blobs_.getBlock(data, len);
 }
 
+static bool handleRxData(uint8_t cmd, const uint8_t *data, uint32_t dlen)
+{
+    switch (cmd)
+    {
+    case SER_CMD_START_IMAGE_LOGGING:
+        enable_recording_ = true;
+        return true;
+
+    case SER_CMD_STOP_IMAGE_LOGGING:
+        enable_recording_ = false;
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
 static int sendBlobs(Chirp *chirp, const BlobA *blobs, uint32_t len, uint8_t renderFlags=RENDER_FLAG_FLUSH)
 {
+    if (chirp == NULL || chirp->connected() == false)
+        return -1;
+
     CRP_RETURN(chirp, HTYPE(FOURCC('C','C','B','1')), HINT8(renderFlags), HINT16(CAM_RES2_WIDTH), HINT16(CAM_RES2_HEIGHT), UINTS16(len*sizeof(BlobA)/sizeof(uint16_t), blobs), END);
     return 0;
 }
@@ -53,7 +76,7 @@ static int blobsSetup()
 {
     if (initialized_ == false)
     {
-        ser_init(callback);
+        ser_init(getTxData, handleRxData);
         initialized_ = true;
     }
 
@@ -65,9 +88,7 @@ static int blobsSetup()
     exec_runM0(0);
 
     // flush serial receive queue
-    uint8_t c;
-    while(ser_getSerial()->receive(&c, 1));
-
+    ser_flush();
     return 0;
 }
 
@@ -82,21 +103,22 @@ static int blobsLoop()
         return 0;
     }
 
-    // send blobs
+    // send blobs over USB if available
     blobs_.getBlobs(&blobs, &numBlobs);
     sendBlobs(g_chirpUsb, blobs, numBlobs);
 
-    if (blobs_.frameBufValid())
+    // Write frame buffer to SD Card if available
+    if (enable_recording_ && blobs_.frameBufValid())
+    {
+        led_setRGB(0, 50, 0);
         sdmmc_writeFrame((void*)MEM_SD_FRAME_LOC, CAM_RES2_WIDTH * CAM_RES2_HEIGHT);
+        led_setRGB(0, 0, 0);
+    }
 
     // can do work here while waiting for more data in queue
-    Iserial *serial = ser_getSerial();
-    serial->update();
     while(!qqueue_.queued())
     {
-        // Just throw away serial input for now.
-        uint8_t c;
-        serial->receive(&c, 1);
+        ser_processInput();
     }
 
     return 0;

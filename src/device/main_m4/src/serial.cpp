@@ -21,12 +21,21 @@
 #include "pixy_init.h"
 #include "exec.h"
 
-uint8_t g_interface = 0;
-int8_t g_angle = 0;
+
+enum SerialRecvState
+{
+    RECV_STATE_INIT,
+    RECV_STATE_SYNC,
+    RECV_STATE_CMD,
+};
+
+static uint8_t g_interface = 0;
 static Iserial *g_serial = 0;
+static SerialCmdCallback g_cmdCallback = NULL;
+static SerialRecvState g_state = RECV_STATE_INIT;
 
 
-int ser_init(SerialCallback callback)
+int ser_init(SerialCallback callback, SerialCmdCallback cmdCallback)
 {
     i2c_init(callback);
     spi_init(callback);
@@ -36,7 +45,14 @@ int ser_init(SerialCallback callback)
     g_uart0->setBaudrate(SER_INTERFACE_SER_BAUD);
     ser_setInterface(SER_INTERFACE_I2C);
 
+    g_cmdCallback = cmdCallback;
     return 0;
+}
+
+void ser_flush()
+{
+    uint8_t c;
+    while(g_serial->receive(&c, 1));
 }
 
 int ser_setInterface(uint8_t interface)
@@ -91,4 +107,36 @@ uint8_t ser_getInterface()
 Iserial *ser_getSerial()
 {
     return g_serial;
+}
+
+void ser_processInput()
+{
+    uint8_t byte;
+    g_serial->update();
+
+    switch (g_state)
+    {
+    case RECV_STATE_INIT:
+        g_state = RECV_STATE_SYNC;
+        break;
+
+    case RECV_STATE_SYNC:
+        if (g_serial->receive(&byte, 1) && byte == SER_SYNC_BYTE)
+        {
+            g_state = RECV_STATE_CMD;
+        }
+        break;
+
+    case RECV_STATE_CMD:
+        if (g_serial->receive(&byte, 1) && g_cmdCallback)
+        {
+            g_cmdCallback(byte, NULL, 0);
+        }
+        g_state = RECV_STATE_INIT;
+        break;
+
+    default:
+        g_state = RECV_STATE_INIT;
+        break;
+    }
 }

@@ -28,11 +28,16 @@
 
 #define SER_INTERFACE_SER_BAUD        19200
 
-int ser_init(SerialCallback callback);
+#define SER_SYNC_BYTE                 0xA5
+#define SER_CMD_START_IMAGE_LOGGING   0xBE
+#define SER_CMD_STOP_IMAGE_LOGGING    0xEF
+
+typedef bool (*SerialCmdCallback)(uint8_t cmd, const uint8_t *data, uint32_t dlen);
+
+int ser_init(SerialCallback callback, SerialCmdCallback cmdCallback);
+void ser_flush();
 int ser_setInterface(uint8_t interface);
 uint8_t ser_getInterface();
-Iserial *ser_getSerial();
-
-extern uint8_t g_interface;
+void ser_processInput();
 
 #endif
