@@ -23,3 +23,28 @@ This directory contains:
 
 /src/host/arduino - this directory contains the Arduino library for communicating with Pixy.
 
+
+Firmware Build Procedure with GCC ARM Toolchain:
+
+  Installation:
+
+    Make sure LPCXpresso IDE v8.2.2 is installed
+    https://www.nxp.com/design/microcontrollers-developer-resources/lpc-microcontroller-utilities/lpcxpresso-ide-v8-2-2:LPCXPRESSO
+
+    Add the gcc arm toolchain that comes with LPCXpresso to your PATH before building.
+    <LPCXPRESSO_ROOT>/lpcxpresso/tools/bin
+
+
+  Build (without image logging):
+
+    1) cd src/device
+    2) make
+
+  Build (with image logging):
+
+    1) cd src/device
+    2) make ENABLE_IMAGE_LOGGING=1
+
+  Output:
+
+    The firmware hex file is located in src/device/main_m4/SPIFI/pixy_firmware.hex
