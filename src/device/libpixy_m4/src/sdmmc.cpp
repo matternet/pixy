@@ -266,9 +266,14 @@ bool sdmmc_init(void)
     boot_cnt_ = 0;
     if (init_card(boot_cnt_))
     {
-        // Calculate the session block for use with store images
+        // Calculate the session block for use with storing images
         session_id_ = boot_cnt_ % MAX_SESSIONS;
         session_block_ = SESSION_BLOCK_START + (session_id_ * BLOCKS_PER_FRAME * FRAMES_PER_SESSION);
+
+        // Clear the first block of the session's first frame
+        uint8_t buffer[MMC_SECTOR_SIZE];
+        memset(&buffer, 0xff, sizeof(buffer));
+        Chip_SDMMC_WriteBlocks(LPC_SDMMC, buffer, session_block_, 1);
 
         printf(LOG_PREFIX "Boot Count: %u\n", boot_cnt_);
         printf(LOG_PREFIX "Session ID: %u\n", session_id_);
