@@ -35,7 +35,9 @@
 
 #define MEM_USB_FRAME_LOC        SRAM1_LOC
 #define MEM_USB_FRAME_SIZE       SRAM1_SIZE
-#define MEM_SD_FRAME_LOC         (MEM_USB_FRAME_LOC + 64) // Leave room in front for USB header
+#define MEM_SD_FRAME_LOC         SRAM1_LOC
+#define MEM_SD_FRAME_HDR_SIZE    512
+#define MEM_M0_FRAME_LOC         (MEM_SD_FRAME_LOC + MEM_SD_FRAME_HDR_SIZE) // Leave room in front for USB/SD header
 #define MEM_QQ_LOC               SRAM4_LOC
 #define MEM_QQ_SIZE              (0x3c00)
 #define MEM_SM_LOC               (SRAM4_LOC + MEM_QQ_SIZE)

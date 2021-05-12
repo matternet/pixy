@@ -35,15 +35,15 @@ Firmware Build Procedure with GCC ARM Toolchain:
     <LPCXPRESSO_ROOT>/lpcxpresso/tools/bin
 
 
-  Build (without image logging):
+  Build:
 
     1) cd src/device
     2) make
 
-  Build (with image logging):
+  Build with image logging enabled at bootup (for testing purposes only):
 
     1) cd src/device
-    2) make ENABLE_IMAGE_LOGGING=1
+    2) make ENABLE_IMAGE_LOGGING_AT_BOOT=1
 
   Output:
 

@@ -30,24 +30,34 @@ PLAYBACK_DELAY = 100
 BYTES_PER_BLOCK = 512
 FRAME_WIDTH = 320
 FRAME_HEIGHT = 200
-FRAME_BYTES = FRAME_WIDTH * FRAME_HEIGHT
-FRAMES_PER_SESSION = 15000
-BLOCKS_PER_FRAME = FRAME_BYTES / BYTES_PER_BLOCK
+FRAME_HEADER_BLOCK_SIZE = 1
+FRAME_HEADER_BYTE_SIZE = FRAME_HEADER_BLOCK_SIZE * BYTES_PER_BLOCK
+IMAGE_BYTES = FRAME_WIDTH * FRAME_HEIGHT
+BLOCKS_PER_FRAME = IMAGE_BYTES / BYTES_PER_BLOCK + FRAME_HEADER_BLOCK_SIZE
+BYTES_PER_FRAME = BLOCKS_PER_FRAME * BYTES_PER_BLOCK
+FRAMES_PER_SESSION = 6000
 SESSION_BLOCK_START = 2
-MAX_SESSIONS = 32
-TIMESTAMP_LEN = 6
-HEADER_LEN = 14
+MAX_SESSIONS = 80
+
+CRC_LEN = 1
+HEADER_LEN = 12 + CRC_LEN
+
+MAX_BLOBS = 20
+BLOB_STRUCT_LEN = 10
+BLOB_ARRAY_LEN = MAX_BLOBS * BLOB_STRUCT_LEN
+FRAME_HEADER_BEFORE_BLOBS_LEN = 18
+FRAME_HEADER_LEN = FRAME_HEADER_BEFORE_BLOBS_LEN + BLOB_ARRAY_LEN + CRC_LEN
 
 
 ## This class maintains the session and frame positions and retrieves the image data via USB.
 class Player(object):
-    def __init__(self, boot_cnt):
-        self._session_index = boot_cnt % MAX_SESSIONS
+    def __init__(self, session_cnt):
+        self._session_index = session_cnt % MAX_SESSIONS
         self._frame_index = 0
         self._playing = False
         self._image = None
 
-        print("Boot count is " + str(boot_cnt))
+        print("Session count is " + str(session_cnt))
         print("Current session index is " + str(self._session_index))
 
     def playing(self):
@@ -58,6 +68,19 @@ class Player(object):
 
     def pause(self):
         self._playing = False
+
+    def parse_image_header(self, header):
+        session_cnt, frame_cnt, timestamp_us, last_write_time_us, blob_cnt = struct.unpack_from('<IIIIH', header)
+        blobs = struct.unpack_from('<100H', header[FRAME_HEADER_BEFORE_BLOBS_LEN:])
+        crc8, = struct.unpack_from('<B', header[-CRC_LEN:])
+
+        crc_func = crcmod.predefined.Crc('crc-8')
+        crc_func.update(header[:-CRC_LEN])
+        calc_crc8 = int(crc_func.hexdigest(), 16)
+        if calc_crc8 != crc8:
+            print('Image header corrupted')
+        else:
+            print(session_cnt, frame_cnt, timestamp_us/1000.0, last_write_time_us/1000.0, blob_cnt)
 
     def get_image(self, session_index=None, frame_index=None):
         if session_index is None:
@@ -70,23 +93,19 @@ class Player(object):
         session_block = SESSION_BLOCK_START + (session_index * BLOCKS_PER_FRAME * FRAMES_PER_SESSION)
         block_num = session_block + (frame_index * BLOCKS_PER_FRAME)
 
-        # Grab image over USB interface
-        data = pixy.byteArray(FRAME_BYTES)
+        # Grab frame data
+        data = pixy.byteArray(BYTES_PER_FRAME)
         pixy.pixy_read_blocks(block_num, BLOCKS_PER_FRAME, data)
 
-        # Extract the timestamp from the image data and make the pixels black
-        timestamp = pixy.cdata(data, TIMESTAMP_LEN)
-        boot_cnt, time_ms = struct.unpack_from('>HI', timestamp)
-        for i in xrange(TIMESTAMP_LEN):
-            data[i] = 0
-
-        print(boot_cnt, time_ms)
+        # Parse frame header
+        header = pixy.cdata(data, FRAME_HEADER_LEN)
+        self.parse_image_header(header)
 
         # Convert to numpy matrix
         frame = np.zeros((FRAME_HEIGHT, FRAME_WIDTH), dtype=np.uint8)
         for h in xrange(FRAME_HEIGHT):
             for w in xrange(FRAME_WIDTH):
-                frame[h, w] = data[h * FRAME_WIDTH + w]
+                frame[h, w] = data[FRAME_HEADER_BYTE_SIZE + (h * FRAME_WIDTH + w)]
 
         return Image.fromarray(frame, "L")
 
@@ -258,11 +277,11 @@ class Window(tk.Frame):
 
 ## This class is the main window for the application.
 class App(tk.Tk):
-    def __init__(self, boot_cnt):
+    def __init__(self, session_cnt):
         tk.Tk.__init__(self)
         self.title("Pixy Image Player")
         self.geometry("{}x{}".format(WINDOW_WIDTH, WINDOW_HEIGHT))
-        self._player = Player(boot_cnt)
+        self._player = Player(session_cnt)
         self._window = Window(self, self._player)
         self.config(menu=self._window.get_menubar())
         self.mainloop()
@@ -270,13 +289,13 @@ class App(tk.Tk):
 
 ## Verifies the header block for corruption.
 # @param hdr The header byte data
-# @return Current boot counter on success or -1 otherwise
+# @return Current session counter on success or -1 otherwise
 def verify_header(hdr):
-    magic, version, boot_cnt, crc16 = struct.unpack_from('<4sIIH', hdr)
-    crc_func = crcmod.predefined.Crc('crc-ccitt-false')
-    crc_func.update(hdr[:HEADER_LEN-2])
-    calc_crc16 = int(crc_func.hexdigest(), 16)
-    return boot_cnt if (calc_crc16 == crc16) else -1
+    magic, version, session_cnt, crc8 = struct.unpack_from('<4sIIB', hdr)
+    crc_func = crcmod.predefined.Crc('crc-8')
+    crc_func.update(hdr[:-CRC_LEN])
+    calc_crc8 = int(crc_func.hexdigest(), 16)
+    return session_cnt if (calc_crc8 == crc8) else -1
 
 
 ## Read header block from SD Card.
@@ -288,22 +307,22 @@ def read_header(block_num):
     return pixy.cdata(data, HEADER_LEN)
 
 
-## Get boot count field of the header blocks
-# @return The greater boot counter of the two header blocks
-def get_boot_count():
+## Get session count field of the header blocks
+# @return The greater session counter of the two header blocks
+def get_session_count():
     # Get HeaderA
     header = read_header(0)
-    boot_cnt_a = verify_header(header)
+    session_cnt_a = verify_header(header)
 
     # Get HeaderB
     header = read_header(1)
-    boot_cnt_b = verify_header(header)
+    session_cnt_b = verify_header(header)
 
-    if boot_cnt_a < 0 and boot_cnt_a < 0:
+    if session_cnt_a < 0 and session_cnt_a < 0:
         print("Both header blocks are invalid. Proceed with caution...")
         return 0
 
-    return max(boot_cnt_a, boot_cnt_b)
+    return max(session_cnt_a, session_cnt_b)
 
 
 ## Main function of application
@@ -316,11 +335,11 @@ def main():
     # Stop default program
     pixy.pixy_command("stop")
 
-    # Get boot count to calculate the current session index
-    boot_cnt = get_boot_count()
+    # Get session count to calculate the current session index
+    session_cnt = get_session_count()
 
     # Start application
-    app = App(boot_cnt)
+    app = App(session_cnt)
 
     # Close connection to Pixy
     pixy.pixy_close()

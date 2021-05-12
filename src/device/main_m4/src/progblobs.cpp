@@ -35,7 +35,7 @@ Program g_progBlobs =
 };
 
 static bool initialized_ = false;
-static bool enable_recording_ = false;
+static bool enable_image_logging_ = false;
 static Qqueue qqueue_;
 static Blobs blobs_;
 
@@ -44,16 +44,30 @@ static uint32_t getTxData(uint8_t *data, uint32_t len)
     return blobs_.getBlock(data, len);
 }
 
+static void enable_logging(bool enable)
+{
+    static bool sd_card_header_intialized = false;
+
+    // Only update the SD Card's header block once on first enable.
+    if (!sd_card_header_intialized && enable)
+    {
+        sdmmc_updateHeader();
+        sd_card_header_intialized = true;
+    }
+
+    enable_image_logging_ = enable;
+}
+
 static bool handleRxData(uint8_t cmd, const uint8_t *data, uint32_t dlen)
 {
     switch (cmd)
     {
     case SER_CMD_START_IMAGE_LOGGING:
-        enable_recording_ = true;
+        enable_logging(true);
         return true;
 
     case SER_CMD_STOP_IMAGE_LOGGING:
-        enable_recording_ = false;
+        enable_logging(false);
         return true;
 
     default:
@@ -76,6 +90,10 @@ static int blobsSetup()
 {
     if (initialized_ == false)
     {
+#ifdef ENABLE_IMAGE_LOGGING_AT_BOOT
+        enable_logging(true);
+#endif
+
         ser_init(getTxData, handleRxData);
         initialized_ = true;
     }
@@ -108,10 +126,10 @@ static int blobsLoop()
     sendBlobs(g_chirpUsb, blobs, numBlobs);
 
     // Write frame buffer to SD Card if available
-    if (enable_recording_ && blobs_.frameBufValid())
+    if (enable_image_logging_ && blobs_.frameBufValid())
     {
         led_setRGB(0, 50, 0);
-        sdmmc_writeFrame((void*)MEM_SD_FRAME_LOC, CAM_RES2_WIDTH * CAM_RES2_HEIGHT);
+        sdmmc_writeFrame((void*)MEM_SD_FRAME_LOC, CAM_RES2_WIDTH * CAM_RES2_HEIGHT, blobs, numBlobs);
         led_setRGB(0, 0, 0);
     }
 

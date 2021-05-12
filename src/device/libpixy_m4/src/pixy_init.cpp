@@ -196,10 +196,7 @@ void pixyInit(void)
     led_init();
     led_setRGB(255, 0, 0);
 
-#ifdef ENABLE_IMAGE_LOGGING
     sdmmc_init();
-#endif
-
     prm_init(g_chirpUsb);
     pwr_init();
     cam_init();
