@@ -250,7 +250,7 @@ int32_t getRLSFrame(void)
     // If writing the pixels to the frame buffer then use the correct shared memory address.
     // Else use a dummy address on the stack. See comments in the processLine function for more details.
     uint8_t dummyFrameBuf;
-    uint8_t *frameBuf = (writeFrame) ? (uint8_t*)MEM_SD_FRAME_LOC : &dummyFrameBuf;
+    uint8_t *frameBuf = (writeFrame) ? (uint8_t*)MEM_M0_FRAME_LOC : &dummyFrameBuf;
 
     uint32_t numQvals;
     Qval qScratch[MAX_NEW_QVALS_PER_LINE];

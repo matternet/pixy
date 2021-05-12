@@ -11,10 +11,6 @@ USER_OBJS :=
 LIBS :=
 ARCHIVES :=
 
-ifeq ($(ENABLE_IMAGE_LOGGING),1)
-    CFLAGS += -DENABLE_IMAGE_LOGGING
-endif
-
 ifeq ($(DEBUG),1)
     CFLAGS += -Og -g
 else

@@ -27,10 +27,8 @@ extern "C"
 {
 #endif
 
-// http://srecord.sourceforge.net/crc16-ccitt.html
-#define CRC16_CCITT_POLYNOMIAL ((unsigned short)0x1021)
-uint16_t crc16(const void* const data, const uint32_t size, uint16_t init=0xffff);
-
+// CRC8, polynomial = 0x107, init_value = 0x00
+uint8_t crc8(const void* const data, uint8_t len);
 uint32_t adc_get(uint32_t channel);
 uint32_t button(void);
 void delayus(uint32_t us);
