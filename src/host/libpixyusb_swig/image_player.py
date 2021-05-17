@@ -8,6 +8,7 @@
 # @copyright Copyright 2021 Matternet. All rights reserved.
 #
 
+import collections
 import crcmod
 import numpy as np
 import pixy
@@ -18,7 +19,7 @@ from tkSimpleDialog import askinteger
 from tkFileDialog import asksaveasfilename
 from tkFileDialog import askdirectory
 from ttk import Progressbar
-from PIL import Image, ImageTk
+from PIL import Image, ImageDraw, ImageTk
 
 
 # Constants related to user interface
@@ -41,12 +42,21 @@ MAX_SESSIONS = 80
 
 CRC_LEN = 1
 HEADER_LEN = 12 + CRC_LEN
-
 MAX_BLOBS = 20
-BLOB_STRUCT_LEN = 10
+BLOB_STRUCT_ITEM_CNT = 5
+BLOB_STRUCT_ITEM_SIZE = 2  # uint16_t
+BLOB_STRUCT_LEN = BLOB_STRUCT_ITEM_CNT * BLOB_STRUCT_ITEM_SIZE
 BLOB_ARRAY_LEN = MAX_BLOBS * BLOB_STRUCT_LEN
 FRAME_HEADER_BEFORE_BLOBS_LEN = 18
 FRAME_HEADER_LEN = FRAME_HEADER_BEFORE_BLOBS_LEN + BLOB_ARRAY_LEN + CRC_LEN
+
+FrameHeader = collections.namedtuple('FrameHeader', 'session_cnt '
+                                                    'frame_cnt '
+                                                    'timestamp_us '
+                                                    'last_write_time_us '
+                                                    'blob_cnt '
+                                                    'blobs '
+                                                    'crc8')
 
 
 ## This class maintains the session and frame positions and retrieves the image data via USB.
@@ -56,6 +66,7 @@ class Player(object):
         self._frame_index = 0
         self._playing = False
         self._image = None
+        self._show_blobs = True
 
         print("Session count is " + str(session_cnt))
         print("Current session index is " + str(self._session_index))
@@ -69,18 +80,19 @@ class Player(object):
     def pause(self):
         self._playing = False
 
-    def parse_image_header(self, header):
-        session_cnt, frame_cnt, timestamp_us, last_write_time_us, blob_cnt = struct.unpack_from('<IIIIH', header)
-        blobs = struct.unpack_from('<100H', header[FRAME_HEADER_BEFORE_BLOBS_LEN:])
-        crc8, = struct.unpack_from('<B', header[-CRC_LEN:])
+    @staticmethod
+    def parse_image_header(data):
+        hdr = FrameHeader
+        hdr.session_cnt, hdr.frame_cnt, hdr.timestamp_us, hdr.last_write_time_us, hdr.blob_cnt = struct.unpack_from('<IIIIH', data)
+        hdr.blobs = struct.unpack_from('<100H', data[FRAME_HEADER_BEFORE_BLOBS_LEN:])
+        hdr.crc8, = struct.unpack_from('<B', data[-CRC_LEN:])
 
         crc_func = crcmod.predefined.Crc('crc-8')
-        crc_func.update(header[:-CRC_LEN])
+        crc_func.update(data[:-CRC_LEN])
         calc_crc8 = int(crc_func.hexdigest(), 16)
-        if calc_crc8 != crc8:
-            print('Image header corrupted')
-        else:
-            print(session_cnt, frame_cnt, timestamp_us/1000.0, last_write_time_us/1000.0, blob_cnt)
+        if calc_crc8 == hdr.crc8:
+            return hdr
+        return None
 
     def get_image(self, session_index=None, frame_index=None):
         if session_index is None:
@@ -98,8 +110,12 @@ class Player(object):
         pixy.pixy_read_blocks(block_num, BLOCKS_PER_FRAME, data)
 
         # Parse frame header
-        header = pixy.cdata(data, FRAME_HEADER_LEN)
-        self.parse_image_header(header)
+        header_data = pixy.cdata(data, FRAME_HEADER_LEN)
+        header = self.parse_image_header(header_data)
+        if header:
+            print(header.session_cnt, header.frame_cnt, header.timestamp_us / 1000.0, header.last_write_time_us / 1000.0, header.blob_cnt)
+        else:
+            print('Image header corrupted')
 
         # Convert to numpy matrix
         frame = np.zeros((FRAME_HEIGHT, FRAME_WIDTH), dtype=np.uint8)
@@ -107,7 +123,20 @@ class Player(object):
             for w in xrange(FRAME_WIDTH):
                 frame[h, w] = data[FRAME_HEADER_BYTE_SIZE + (h * FRAME_WIDTH + w)]
 
-        return Image.fromarray(frame, "L")
+        # Draw frame
+        image = Image.fromarray(frame, "L")
+
+        # Draw detected blobs if any
+        if self._show_blobs and header:
+            draw = ImageDraw.Draw(image)
+            for i in range(header.blob_cnt):
+                offset = i * BLOB_STRUCT_ITEM_CNT
+                top_left = (header.blobs[offset + 1], header.blobs[offset + 3])
+                bottom_right = (header.blobs[offset + 2], header.blobs[offset + 4])
+                draw.rectangle((top_left, bottom_right), outline=255)
+                print("  blob {}: {}, {}".format(i+1, top_left, bottom_right))
+
+        return image
 
     def get_session_index(self):
         return self._session_index
