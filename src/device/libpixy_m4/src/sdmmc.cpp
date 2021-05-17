@@ -218,13 +218,10 @@ static bool init_card(uint32_t &session_cnt)
                 return false;
             }
         }
-        else
+        else if (write_header(HEADER_BLOCK_ID_A, header->session_cnt) == false)
         {
-            if (write_header(HEADER_BLOCK_ID_A, header->session_cnt) == false)
-            {
-                printf(LOG_PREFIX "Failed to update HeaderA\n");
-                return false;
-            }
+            printf(LOG_PREFIX "Failed to update HeaderA\n");
+            return false;
         }
     }
 
