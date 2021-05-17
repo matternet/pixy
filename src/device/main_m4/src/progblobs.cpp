@@ -51,8 +51,7 @@ static void enable_logging(bool enable)
     // Only update the SD Card's header block once on first enable.
     if (!sd_card_header_intialized && enable)
     {
-        sdmmc_updateHeader();
-        sd_card_header_intialized = true;
+        sd_card_header_intialized = sdmmc_updateHeader();
     }
 
     enable_image_logging_ = enable;
