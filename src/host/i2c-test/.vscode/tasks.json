@@ -1,0 +1,37 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "make program",
+			"command": "bash",
+			"args": [
+				"-c",
+				". /opt/armv8a-jetson-txt-nx-toolchain/environment-setup-armv8a-poky-linux && make clean && make DEBUG=1"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "build",
+			"problemMatcher": [
+				"$gcc"
+			]
+		},
+		{
+			"type": "shell",
+			"label": "start gdbserver",
+			"command": "bash",
+			"args": [
+				"-c",
+				".vscode/start-gdbserver.sh"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "build",
+			"problemMatcher": [
+				"$gcc"
+			]
+		}
+	]
+}

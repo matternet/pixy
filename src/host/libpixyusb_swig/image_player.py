@@ -142,7 +142,9 @@ class Player(object):
                 top_left = (header.blobs[offset + 1], header.blobs[offset + 3])
                 bottom_right = (header.blobs[offset + 2], header.blobs[offset + 4])
                 draw.rectangle((top_left, bottom_right), outline=255)
-                print("  blob {}: {}, {}".format(i+1, top_left, bottom_right))
+                width = bottom_right[0] - top_left[0]
+                height = bottom_right[1] - top_left[1]
+                print("  blob {}: {}, {}".format(i+1, top_left, (width, height)))
 
         return image
 
@@ -182,6 +184,7 @@ class Window(tk.Frame):
 
         # Variables for playback
         self._image = None
+        self._tk_image = None
         self._player = player
 
         # Variables for showing current frame information
@@ -213,6 +216,7 @@ class Window(tk.Frame):
         lbl_status_bar = tk.Label(self, textvariable=self._statusvar, bd=1, relief=tk.SUNKEN, anchor=tk.W)
         lbl_progress_bar = Progressbar(self, variable=self._progressvar, orient=tk.HORIZONTAL, length=100, mode='determinate')
         lbl_progress_bar.bind("<Button>", self.status_bar_mouse_click)
+        self._canvas.bind("<Motion>", self.image_mouse_pixel)
 
         # Grid layout
         self._canvas.grid(row=0, column=0, columnspan=5)
@@ -231,14 +235,20 @@ class Window(tk.Frame):
     def get_menubar(self):
         return self._menubar
 
+    def update_status_bar(self, pixel=None):
+        self._statusvar.set("Session {}, Frame {} of {}, Pixel {}".format(self._player.get_session_index() + 1,
+                                                                          self._player.get_frame_index() + 1,
+                                                                          FRAMES_PER_SESSION,
+                                                                          pixel))
+
     def show_current_frame(self):
         progress = int(self._player.get_frame_index() * 100.0 / FRAMES_PER_SESSION)
         self._progressvar.set(progress)
-        self._statusvar.set("Session {}, Frame {} of {}".format(self._player.get_session_index()+1, self._player.get_frame_index()+1, FRAMES_PER_SESSION))
+        self.update_status_bar()
 
-        image = self._player.get_image()
-        self._image = ImageTk.PhotoImage(image)
-        self._canvas.configure(image=self._image)
+        self._image = self._player.get_image()
+        self._tk_image = ImageTk.PhotoImage(self._image)
+        self._canvas.configure(image=self._tk_image)
 
     def play_next_frame(self):
         self.show_current_frame()
@@ -278,6 +288,17 @@ class Window(tk.Frame):
         index = int(percent * FRAMES_PER_SESSION)
         self._player.set_frame(index)
         self.show_current_frame()
+
+    def image_mouse_pixel(self, event):
+        x = event.x - 1
+        y = event.y - 1
+        if self._image and \
+                (x > 0) and \
+                (x < FRAME_WIDTH) and \
+                (y > 0) and \
+                (y < FRAME_HEIGHT):
+            pixel = self._image.getpixel((x, y))
+            self.update_status_bar(pixel)
 
     def menu_save_frame_clicked(self):
         image = self._player.get_image()
