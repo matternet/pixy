@@ -109,10 +109,14 @@ Iserial *ser_getSerial()
     return g_serial;
 }
 
+void ser_update()
+{
+    g_serial->update();
+}
+
 void ser_processInput()
 {
     uint8_t byte;
-    g_serial->update();
 
     switch (g_state)
     {

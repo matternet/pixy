@@ -133,6 +133,7 @@ static int blobsLoop()
     }
 
     // can do work here while waiting for more data in queue
+    ser_update();
     while(!qqueue_.queued())
     {
         ser_processInput();

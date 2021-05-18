@@ -38,6 +38,7 @@ int ser_init(SerialCallback callback, SerialCmdCallback cmdCallback);
 void ser_flush();
 int ser_setInterface(uint8_t interface);
 uint8_t ser_getInterface();
+void ser_update();
 void ser_processInput();
 
 #endif
