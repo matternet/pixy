@@ -80,6 +80,14 @@ class Player(object):
     def pause(self):
         self._playing = False
 
+    @property
+    def show_blobs(self):
+        return self._show_blobs
+
+    @show_blobs.setter
+    def show_blobs(self, show):
+        self._show_blobs = show
+
     @staticmethod
     def parse_image_header(data):
         hdr = FrameHeader
@@ -190,6 +198,9 @@ class Window(tk.Frame):
         filemenu.add_command(label="Save Session", command=self.menu_save_session_clicked)
         ctrlmenu.add_command(label="Goto Session", command=self.menu_ctrl_goto_session_clicked)
         ctrlmenu.add_command(label="Goto Frame", command=self.menu_ctrl_goto_frame_clicked)
+        ctrlmenu.add_separator()
+        self._show_blobs = tk.BooleanVar(value=self._player.show_blobs)
+        ctrlmenu.add_checkbutton(label="Show Blobs", variable=self._show_blobs, command=self.menu_ctrl_show_blobs_clicked)
 
         # Build user controls
         self._canvas = tk.Label(self, bg="white")
@@ -301,6 +312,10 @@ class Window(tk.Frame):
         if frame is None:
             return
         self._player.set_frame(frame - 1)
+        self.show_current_frame()
+
+    def menu_ctrl_show_blobs_clicked(self):
+        self._player.show_blobs = self._show_blobs.get()
         self.show_current_frame()
 
 
