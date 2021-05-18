@@ -13,6 +13,7 @@
 // end license header
 //
 
+#include "cameravals.h"
 #include "pixy_init.h"
 #include "blobs.h"
 
@@ -77,6 +78,8 @@ int Blobs::runlengthAnalysis(Qqueue *qq)
         if ((qval.m_col_start & QVAL_VAL_MASK) >= QVAL_FRAME_ERROR)
             break;
 
+        // Result of handleSegment returns -1 if heap is full.
+        // If so, don't add any more segments; just bypass until the end of frame.
         if (res < 0)
             continue;
 
@@ -95,8 +98,11 @@ int Blobs::runlengthAnalysis(Qqueue *qq)
         res = handleSegment(row, qval.m_col_start, qval.m_col_end - 1);
     }
 
-    if ((qval.m_col_start & QVAL_VAL_MASK) == QVAL_FRAME_ERROR) // error code, queue overrun
+    if (((qval.m_col_start & QVAL_VAL_MASK) == QVAL_FRAME_ERROR) || // return error if queue overrun
+        (row != CAM_RES2_HEIGHT - 1))  // return error if row doesn't match image height
+    {
         return -1;
+    }
 
     m_assembler.EndFrame();
     m_assembler.SortFinished();
@@ -121,6 +127,8 @@ int Blobs::blobify(Qqueue *qq)
 
     if (runlengthAnalysis(qq) < 0)
     {
+        printf("Error: frame error detected\n");
+        qq->flush();
         m_assembler.Reset();
         m_numBlobs = 0;
         return -1;

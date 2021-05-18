@@ -3,11 +3,43 @@
 	"tasks": [
 		{
 			"type": "shell",
-			"label": "make program",
+			"label": "make DEBUG",
 			"command": "bash",
 			"args": [
 				"-c",
 				"cd device && make clean && PATH=/opt/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin:$PATH DEBUG=1 make"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "build",
+			"problemMatcher": [
+				"$gcc"
+			]
+		},
+		{
+			"type": "shell",
+			"label": "make LOGGING",
+			"command": "bash",
+			"args": [
+				"-c",
+				"cd device && make clean && PATH=/opt/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin:$PATH ENABLE_IMAGE_LOGGING_AT_BOOT=1 make"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "build",
+			"problemMatcher": [
+				"$gcc"
+			]
+		},
+		{
+			"type": "shell",
+			"label": "make RELEASE",
+			"command": "bash",
+			"args": [
+				"-c",
+				"cd device && make clean && PATH=/opt/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin:$PATH make"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
