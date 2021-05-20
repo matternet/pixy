@@ -9,6 +9,7 @@
 *.map
 *.mk
 *.o
+*.pyc
 *.swo
 *.swp
 build/

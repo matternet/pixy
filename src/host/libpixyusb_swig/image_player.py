@@ -102,6 +102,20 @@ class Player(object):
             return hdr
         return None
 
+    def get_image_header(self, session_index, frame_index):
+        # Calculate the block to read from SD Card
+        session_index = session_index % MAX_SESSIONS
+        session_block = SESSION_BLOCK_START + (session_index * BLOCKS_PER_FRAME * FRAMES_PER_SESSION)
+        block_num = session_block + (frame_index * BLOCKS_PER_FRAME)
+
+        # Grab frame data
+        data = pixy.byteArray(BYTES_PER_BLOCK)
+        pixy.pixy_read_blocks(block_num, 1, data)
+
+        # Parse frame header
+        header_data = pixy.cdata(data, FRAME_HEADER_LEN)
+        return self.parse_image_header(header_data)
+
     def get_image(self, session_index=None, frame_index=None):
         if session_index is None:
             session_index = self._session_index
