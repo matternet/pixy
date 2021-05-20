@@ -135,6 +135,14 @@ _ASM_LABEL(hsyncstart)
 
     // These labels below are for branches that have free cycles
     // and need to wait for the next pixel sync clock cycle.
+_ASM_LABEL(sync_cycles_13)
+    _ASM(NOP)               // 1
+_ASM_LABEL(sync_cycles_12)
+    _ASM(NOP)               // 1
+_ASM_LABEL(sync_cycles_11)
+    _ASM(NOP)               // 1
+_ASM_LABEL(sync_cycles_10)
+    _ASM(NOP)               // 1
 _ASM_LABEL(sync_cycles_9)
     _ASM(NOP)               // 1
 _ASM_LABEL(sync_cycles_8)
@@ -146,12 +154,6 @@ _ASM_LABEL(sync_cycles_6)
 _ASM_LABEL(sync_cycles_5)
     _ASM(NOP)               // 1
 _ASM_LABEL(sync_cycles_4)
-    _ASM(NOP)               // 1
-_ASM_LABEL(sync_cycles_3)
-    _ASM(NOP)               // 1
-_ASM_LABEL(sync_cycles_2)
-    _ASM(NOP)               // 1
-_ASM_LABEL(sync_cycles_1)
     _ASM(NOP)               // 1
 
 _ASM_LABEL(loop_inc)
@@ -172,9 +174,8 @@ _ASM_LABEL(loop_pixel)
     // If here then the pixel brightness is below the threshold.
     // If col_start is INVALID then else go back to beginning else
     // it's the end of a run-length; store it to memory.
-    _ASM(NOP)               // 1
     _ASM(CMP    r4, r8)     // 1
-    _ASM(BEQ    sync_cycles_9) // 1 or 3
+    _ASM(BEQ    sync_cycles_13) // 1 or 3
 
     // Save col_start and col_end to values to RAM
     _ASM(STRH   r4, [r2])    // 2; col_start
@@ -186,8 +187,6 @@ _ASM_LABEL(loop_pixel)
 
     // reset col_start to INVALID_COL
     _ASM(MOV    r4, r8)     // 1
-    _ASM(NOP)               // 1
-    _ASM(NOP)               // 1
 
     // Check if q memory full
     _ASM(CMP    r5, r10)    // 1
@@ -207,10 +206,10 @@ _ASM_LABEL(bright_pixel)
 
     // If col_start is valid then do nothing
     // Else it's a start of a new run-length; set col_start to col_current
-    _ASM(CMP    r4, r8)     // 1; PIXEL SYNC; ignore Green pixel
-    _ASM(BNE    sync_cycles_6) // 1 or 3
-    _ASM(MOVS   r4, r3)     // 1; col_start = col_current
-    _ASM(BNE    sync_cycles_3) // 3
+    _ASM(CMP    r4, r8)        // 1; PIXEL SYNC; ignore Green pixel
+    _ASM(BNE    sync_cycles_8) // 1 or 3
+    _ASM(MOVS   r4, r3)        // 1; col_start = col_current
+    _ASM(B      sync_cycles_6) // 3
 
 // END of Loop
 
