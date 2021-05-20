@@ -172,12 +172,12 @@ _ASM_LABEL(loop_pixel)
     _ASM(BGT    bright_pixel)// 1 or 3
 
     // If here then the pixel brightness is below the threshold.
-    // If col_start is INVALID then else go back to beginning else
-    // it's the end of a run-length; store it to memory.
+    // If col_start is INVALID then do nothing,
+    // else it's the end of a run-length; store it to memory.
     _ASM(CMP    r4, r8)     // 1
     _ASM(BEQ    sync_cycles_13) // 1 or 3
 
-    // Save col_start and col_end to values to RAM
+    // Save col_start and col_end values to RAM
     _ASM(STRH   r4, [r2])    // 2; col_start
     _ASM(STRH   r3, [r2, #2])// 2; col_end;  PIXEL_SYNC; ignore Green pixel
 
@@ -222,6 +222,23 @@ _ASM_LABEL(hsyncend)
     _ASM(TST    r7, r6)
     _ASM(BNE    hsyncend)
 
+    // End any run-length that was in progress.
+    // Check if q memory full
+    _ASM(CMP    r5, r10)
+    _ASM(BEQ    done)
+
+    // Check if col_start is valid; r4 = col_start, r8 = INVALID_COL
+    _ASM(CMP    r4, r8)
+    _ASM(BEQ    done)
+
+    // Save col_start and col_end values to RAM
+    _ASM(STRH   r4, [r2])     // col_start
+    _ASM(STRH   r3, [r2, #2]) // col_end
+
+    // Increment Q count
+    _ASM(ADDS   r5, #1)
+
+_ASM_LABEL(done)
     // Set return value (number of Q values)
     _ASM(MOVS   r0, r5)
 
